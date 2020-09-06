@@ -9,8 +9,12 @@ public class VocaScene : MonoBehaviour
     protected List<GameObject> coverObjs = new List<GameObject>();
     protected List<GameObject> letters = new List<GameObject>();
 
+    protected const float lerpReachEnd = 10.0f;
+    protected const float offsetDecrease = 0.1f;
+
     protected Vector2 largestSize = new Vector2();
     protected Transform parentTrans;
+    protected bool isComplete = false;
 
     public void Init(Transform parentTrans, GameMgr.Vocabulary voca, VocaSetup vocaSetup, List<GameObject> letterObjs)
     {
@@ -47,7 +51,10 @@ public class VocaScene : MonoBehaviour
 
     public virtual void Update()
     {
-
+        if (isComplete)
+        {
+            DoReachEndPosition();
+        }
     }
 
     protected void RandomPosition(string voca)
@@ -63,6 +70,30 @@ public class VocaScene : MonoBehaviour
             GameObject letterObj = letters[i];
             Vector2 rdPos = new Vector2(Random.Range(-rdRange.x, rdRange.x), Random.Range(-rdRange.y, rdRange.y));
             (letterObj.transform as RectTransform).localPosition = rdPos;
+        }
+    }
+
+    protected void DoReachEndPosition()
+    {
+        if (curVocaSetup.endReachPos.Count != curVoca.ToString().Length)
+            return;
+
+        float lerpScale = 1.0f;
+        for (int i = 0; i < letters.Count; i++)
+        {
+            Vector2 reachPos = curVocaSetup.endReachPos[i];
+            Vector2 pos = letters[i].transform.localPosition;
+
+            if (!Vector2.Equals(reachPos, pos))
+            {
+                lerpScale -= offsetDecrease * i;
+                pos = Vector2.Lerp(pos, reachPos, lerpScale * lerpReachEnd * Time.deltaTime);
+
+                if (Vector2.Distance(pos, reachPos) <= 0.1f)
+                    pos = reachPos;
+
+                letters[i].transform.localPosition = pos;
+            }
         }
     }
 

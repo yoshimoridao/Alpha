@@ -5,6 +5,8 @@ using UnityEngine;
 public class VocaZoom : VocaScene
 {
     private Camera mainCam;
+    private float delayReachEnd = 0.5f;
+    private bool isCountDownReachEnd = false;
 
     public override void Init()
     {
@@ -35,28 +37,72 @@ public class VocaZoom : VocaScene
     // Update is called once per frame
     public override void Update()
     {
-        if (coverObjs.Count == 0 || this.mainCam == null)
+        base.Update();
+
+        if (this.isComplete || this.coverObjs.Count == 0 || this.mainCam == null)
             return;
 
-        GameObject magnifier = coverObjs[0];
+        if (this.isCountDownReachEnd)
+        {
+            this.delayReachEnd -= Time.deltaTime;
+            if (this.delayReachEnd <= 0)
+            {
+                this.delayReachEnd = 0;
+                this.isComplete = true;
+            }
+
+            
+            return;
+        }
+
+        RectTransform magnifier = coverObjs[0].transform as RectTransform;
         if (!Input.GetMouseButton(0))
         {
-            if (magnifier.active)
-                magnifier.SetActive(false);
+            if (magnifier.gameObject.active)
+                magnifier.gameObject.SetActive(false);
             return;
         }
 
         // move magnifier
-        if (!magnifier.active)
-            magnifier.SetActive(true);
+        if (!magnifier.gameObject.active)
+            magnifier.gameObject.SetActive(true);
 
+        // filter visible letter
+        List<GameObject> invisibleLetters = new List<GameObject>();
+        foreach (var letterObj in letters)
+        {
+            if (letterObj.transform.parent != magnifier.parent)
+                invisibleLetters.Add(letterObj);
+        }
+        
+        // store position of letter
         List<Vector2> tmpPoses = new List<Vector2>();
-        for (int i = 0; i < this.curVoca.ToString().Length; i++)
-            tmpPoses.Add(letters[i].transform.position);
+        for (int i = 0; i < invisibleLetters.Count; i++)
+            tmpPoses.Add(invisibleLetters[i].transform.position);
 
+        // change position of magnifier
         magnifier.transform.position = Input.mousePosition;
 
-        for (int i = 0; i < this.curVoca.ToString().Length; i++)
-            letters[i].transform.position = tmpPoses[i];
+        // keep position of letter
+        float visibleZone = magnifier.sizeDelta.x / 2.0f;
+        for (int i = 0; i < invisibleLetters.Count; i++)
+        {
+            GameObject letterObj = invisibleLetters[i];
+            letterObj.transform.position = tmpPoses[i];
+
+            // check visible letter
+            float distanceLetter = Vector2.Distance(letterObj.transform.position, magnifier.position);
+            if (distanceLetter < visibleZone)
+            {
+                letterObj.transform.parent = magnifier.parent;
+
+                // end do action
+                if (invisibleLetters.Count == 1)
+                {
+                    magnifier.gameObject.SetActive(false);
+                    this.isCountDownReachEnd = true;
+                }
+            }
+        }
     }
 }
